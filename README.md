@@ -162,3 +162,4 @@ docker compose up -d --build
 - `GET /api/meta` - available group by fields
 
 API docs: http://localhost:8000/docs
+
