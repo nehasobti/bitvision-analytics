@@ -1,0 +1,26 @@
+# Environment
+.env
+*.env.local
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.venv-wsl/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Database dumps
+*.sql
+*.tsbuildinfo
+
+# Internal notes
+DETAILS.md
