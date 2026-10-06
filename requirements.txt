@@ -1,0 +1,9 @@
+# Python dependencies for the Vercel function (api/index.py).
+# WeasyPrint is left out: Vercel has no Pango, so PDF export only works with Docker.
+fastapi>=0.115,<1.0
+pydantic-settings>=2.4,<3.0
+SQLAlchemy>=2.0,<3.0
+PyMySQL>=1.1,<2.0
+cryptography>=42
+openpyxl>=3.1,<4.0
+Jinja2>=3.1,<4.0

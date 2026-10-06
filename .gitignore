@@ -6,6 +6,7 @@
 __pycache__/
 *.pyc
 .venv/
+venv/
 .venv-wsl/
 .pytest_cache/
 
@@ -24,3 +25,6 @@ dist/
 
 # Internal notes
 DETAILS.md
+
+# Vercel
+.vercel
