@@ -6,6 +6,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
+from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from app.schemas import FIELD_LABELS
@@ -122,13 +123,28 @@ def _data_table(data: list[dict]) -> Table:
     return _table(header, rows, col_widths=[width * w / sum(weights) for w in weights])
 
 
-def _page_number(canvas, doc) -> None:
-    canvas.saveState()
-    canvas.setFont("Helvetica", 8)
-    canvas.setFillColor(colors.HexColor("#666666"))
-    page_w, _ = landscape(A4)
-    canvas.drawRightString(page_w - MARGIN_X, MARGIN_Y / 2, f"Page {doc.page}")
-    canvas.restoreState()
+class _NumberedCanvas(Canvas):
+    """Holds pages back until the end so each footer can show "Page X of Y"."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._pages = []
+
+    def showPage(self):
+        self._pages.append(dict(self.__dict__))
+        self._startPage()
+
+    def save(self):
+        total = len(self._pages)
+        for state in self._pages:
+            self.__dict__.update(state)
+            self.saveState()
+            self.setFont("Helvetica", 8)
+            self.setFillColor(colors.HexColor("#666666"))
+            self.drawRightString(landscape(A4)[0] - MARGIN_X, MARGIN_Y / 2, f"Page {self._pageNumber} of {total}")
+            self.restoreState()
+            super().showPage()
+        super().save()
 
 
 def build_pdf(data: list[dict], olap: dict, filters: dict) -> bytes:
@@ -171,5 +187,5 @@ def build_pdf(data: list[dict], olap: dict, filters: dict) -> bytes:
         bottomMargin=MARGIN_Y,
         title="Tender outcomes report",
     )
-    doc.build(story, onFirstPage=_page_number, onLaterPages=_page_number)
+    doc.build(story, canvasmaker=_NumberedCanvas)
     return buffer.getvalue()
