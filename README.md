@@ -28,7 +28,6 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-brew install pango
 ```
 
 Set the database connection in `backend/.env`:
@@ -73,10 +72,6 @@ Set `DATABASE_URL` in `backend\.env` same as above, then:
 ```
 uvicorn app.main:app --reload
 ```
-
-For PDF export on Windows you need Pango. Install MSYS2 (https://www.msys2.org),
-run `pacman -S mingw-w64-ucrt-x86_64-pango` in the MSYS2 UCRT64 terminal and add
-`C:\msys64\ucrt64\bin` to PATH. Or just use Docker.
 
 Frontend (in another window):
 
