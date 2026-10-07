@@ -38,6 +38,8 @@ export interface Option {
 }
 
 export interface Meta {
+  language: string;
+  messages: Record<string, string>;
   dimensions: Option[];
   measures: Option[];
   stats: string[];

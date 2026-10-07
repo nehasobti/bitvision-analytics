@@ -5,8 +5,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.schemas import FIELD_LABELS
-from app.services.olap import DIMENSIONS, MEASURES, STATS
+from app.i18n import dimension_label, field_labels, filter_label, t
+from app.services.olap import STATS
 
 HEADER_FONT = Font(bold=True, color="FFFFFF")
 HEADER_FILL = PatternFill("solid", fgColor="1F4E79")
@@ -50,8 +50,9 @@ def build_excel(data: list[dict], olap: dict, filters: dict) -> bytes:
 
     # Sheet 1: filtered data
     ws = wb.active
-    ws.title = "Data"
-    columns = list(FIELD_LABELS)
+    ws.title = t("report.sheet_data")
+    labels = field_labels()
+    columns = list(labels)
     formats = {
         "amount_awarded": MONEY,
         "downside_amount": PERCENT,
@@ -60,23 +61,23 @@ def build_excel(data: list[dict], olap: dict, filters: dict) -> bytes:
     }
     _write_table(
         ws,
-        [FIELD_LABELS[c] for c in columns],
+        [labels[c] for c in columns],
         [[row.get(c) for c in columns] for row in data],
         [formats.get(c) for c in columns],
     )
 
     # Sheet 2: OLAP analysis
-    ws = wb.create_sheet("Analysis")
+    ws = wb.create_sheet(t("report.sheet_analysis"))
     group_by, measures = olap["group_by"], olap["measures"]
     stat_keys = [f"{m}_{s}" for m in measures for s in STATS]
     headers = (
-        [DIMENSIONS[g][0] for g in group_by]
-        + ["Count"]
-        + [f"{MEASURES[m][0]} – {s}" for m in measures for s in STATS]
+        [dimension_label(g) for g in group_by]
+        + [t("stats.count")]
+        + [f"{t(f'fields.{m}')} – {t(f'stats.{s}')}" for m in measures for s in STATS]
     )
     rows = [[r.get(g) for g in group_by] + [r["count"]] + [r.get(k) for k in stat_keys] for r in olap["rows"]]
     totals = olap["totals"]
-    rows.append(["TOTAL"] * max(len(group_by), 1) + [totals["count"]] + [totals.get(k) for k in stat_keys])
+    rows.append([t("olap.total").upper()] * max(len(group_by), 1) + [totals["count"]] + [totals.get(k) for k in stat_keys])
     if not group_by:
         headers = [""] + headers
     fmts = [None] * max(len(group_by), 1) + ["0"] + [_measure_format(m) for m in measures for _ in STATS]
@@ -85,12 +86,12 @@ def build_excel(data: list[dict], olap: dict, filters: dict) -> bytes:
         cell.font = TOTAL_FONT
 
     # Sheet 3: what was exported
-    ws = wb.create_sheet("Filters")
-    ws.append(["Generated", datetime.now().strftime("%d/%m/%Y %H:%M")])
-    ws.append(["Rows exported", len(data)])
-    ws.append(["Grouped by", ", ".join(DIMENSIONS[g][0] for g in group_by) or "—"])
+    ws = wb.create_sheet(t("report.sheet_filters"))
+    ws.append([t("report.generated"), datetime.now().strftime("%d/%m/%Y %H:%M")])
+    ws.append([t("report.rows_exported"), len(data)])
+    ws.append([t("report.grouped_by"), ", ".join(dimension_label(g) for g in group_by) or "—"])
     for key, value in filters.items():
-        ws.append([key.replace("_", " ").capitalize(), value.strftime("%d/%m/%Y") if isinstance(value, date) else value])
+        ws.append([filter_label(key), value.strftime("%d/%m/%Y") if isinstance(value, date) else value])
     ws.column_dimensions["A"].width = 28
     ws.column_dimensions["B"].width = 40
 

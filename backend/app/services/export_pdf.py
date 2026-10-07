@@ -9,8 +9,8 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
-from app.schemas import FIELD_LABELS
-from app.services.olap import DIMENSIONS, MEASURES, STATS
+from app.i18n import dimension_label, field_labels, filter_label, t
+from app.services.olap import STATS
 
 # Pure-Python PDF rendering (no system libraries), so it also runs on Vercel.
 
@@ -75,12 +75,12 @@ def _measure_cell(key: str, value) -> Paragraph:
 
 
 def _olap_table(olap: dict) -> Table:
-    group_by = [(g, DIMENSIONS[g][0]) for g in olap["group_by"]]
-    measures = [(m, MEASURES[m][0]) for m in olap["measures"]]
+    group_by = [(g, dimension_label(g)) for g in olap["group_by"]]
+    measures = [(m, t(f"fields.{m}")) for m in olap["measures"]]
 
     header = [_p(label, HEAD) for _, label in group_by] or [_p("", HEAD)]
-    header += [_p("Count", HEAD_NUM)]
-    header += [_p(f"{label} {s}", HEAD_NUM) for _, label in measures for s in STATS]
+    header += [_p(t("stats.count"), HEAD_NUM)]
+    header += [_p(f"{label} – {t(f'stats.{s}')}", HEAD_NUM) for _, label in measures for s in STATS]
 
     def stat_cells(row: dict) -> list:
         return [_measure_cell(key, row.get(f"{key}_{s}")) for key, _ in measures for s in STATS]
@@ -92,7 +92,7 @@ def _olap_table(olap: dict) -> Table:
 
     bold = ParagraphStyle("total", parent=CELL, fontName="Helvetica-Bold")
     totals = olap["totals"]
-    label_cells = [Paragraph("Total", bold)] + [""] * (max(len(group_by), 1) - 1)
+    label_cells = [Paragraph(escape(t("olap.total")), bold)] + [""] * (max(len(group_by), 1) - 1)
     rows.append(label_cells + [_p(totals["count"], CELL_NUM)] + stat_cells(totals))
 
     table = _table(header, rows, total_row=True)
@@ -103,7 +103,7 @@ def _olap_table(olap: dict) -> Table:
 
 def _data_table(data: list[dict]) -> Table:
     numeric = ("amount_awarded", "downside_amount")
-    header = [_p(label, HEAD_NUM if key in numeric else HEAD) for key, label in FIELD_LABELS.items()]
+    header = [_p(label, HEAD_NUM if key in numeric else HEAD) for key, label in field_labels().items()]
     rows = [
         [
             _p(row.get("successful_tenderer") or ""),
@@ -141,7 +141,8 @@ class _NumberedCanvas(Canvas):
             self.saveState()
             self.setFont("Helvetica", 8)
             self.setFillColor(colors.HexColor("#666666"))
-            self.drawRightString(landscape(A4)[0] - MARGIN_X, MARGIN_Y / 2, f"Page {self._pageNumber} of {total}")
+            label = f"{t('report.page')} {self._pageNumber} {t('report.of')} {total}"
+            self.drawRightString(landscape(A4)[0] - MARGIN_X, MARGIN_Y / 2, label)
             self.restoreState()
             super().showPage()
         super().save()
@@ -149,18 +150,19 @@ class _NumberedCanvas(Canvas):
 
 def build_pdf(data: list[dict], olap: dict, filters: dict) -> bytes:
     story = [
-        Paragraph("Tender outcomes report", TITLE),
-        Paragraph(f"Generated {datetime.now():%d/%m/%Y %H:%M} · {len(data)} records", META),
+        Paragraph(escape(t("report.title")), TITLE),
+        Paragraph(
+            escape(f"{t('report.generated')} {datetime.now():%d/%m/%Y %H:%M} · {len(data)} {t('report.records')}"), META
+        ),
     ]
 
     if filters:
-        bold = ParagraphStyle("filter_key", parent=CELL, fontName="Helvetica-Bold")
-        filter_rows = [
-            [Paragraph(escape(k.replace("_", " ").capitalize()), bold), _p(_date(v) if isinstance(v, date) else v)]
-            for k, v in filters.items()
-        ]
+        # Plain strings (not Paragraphs) so the columns size to their content.
+        filter_rows = [[filter_label(k), str(_date(v) if isinstance(v, date) else v)] for k, v in filters.items()]
         filter_table = Table(filter_rows, hAlign="LEFT")
         filter_table.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+            ("FONT", (0, 0), (0, -1), "Helvetica-Bold", 8),
             ("LEFTPADDING", (0, 0), (-1, -1), 0),
             ("RIGHTPADDING", (0, 0), (-1, -1), 16),
             ("TOPPADDING", (0, 0), (-1, -1), 1),
@@ -168,12 +170,12 @@ def build_pdf(data: list[dict], olap: dict, filters: dict) -> bytes:
         ]))
         story.append(filter_table)
 
-    group_labels = ", ".join(DIMENSIONS[g][0] for g in olap["group_by"])
+    group_labels = ", ".join(dimension_label(g) for g in olap["group_by"])
     story += [
-        Paragraph("Analysis" + (f" by {escape(group_labels)}" if group_labels else ""), H2),
+        Paragraph(escape(t("report.analysis") + (f" {t('report.by')} {group_labels}" if group_labels else "")), H2),
         _olap_table(olap),
         Spacer(1, 2 * mm),
-        Paragraph("Data", H2),
+        Paragraph(escape(t("report.data")), H2),
         _data_table(data),
     ]
 
@@ -185,7 +187,7 @@ def build_pdf(data: list[dict], olap: dict, filters: dict) -> bytes:
         rightMargin=MARGIN_X,
         topMargin=MARGIN_Y,
         bottomMargin=MARGIN_Y,
-        title="Tender outcomes report",
+        title=t("report.title"),
     )
     doc.build(story, canvasmaker=_NumberedCanvas)
     return buffer.getvalue()

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { ColDef, ColGroupDef } from "ag-grid-community";
 import { api, format, type Analysis, type Filters, type Meta, type OlapResult, type OlapRow } from "../api";
+import { useT } from "../i18n";
 
 interface Props {
   meta: Meta;
@@ -10,9 +11,8 @@ interface Props {
   onChange: (analysis: Analysis) => void;
 }
 
-const STAT_LABELS: Record<string, string> = { avg: "Average", min: "Min", max: "Max" };
-
 export default function OlapPanel({ meta, filters, analysis, onChange }: Props) {
+  const t = useT();
   const [result, setResult] = useState<OlapResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,13 +52,13 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
     return [
       ...(result.group_by.length
         ? result.group_by.map((g) => ({ field: g, headerName: label(g, meta.dimensions), pinned: "left" as const, minWidth: 160 }))
-        : [{ headerName: "", valueGetter: () => "All records", minWidth: 160 }]),
-      { field: "count", headerName: "Count", type: "rightAligned", minWidth: 90, flex: 0 },
+        : [{ headerName: "", valueGetter: () => t("olap.all_records"), minWidth: 160 }]),
+      { field: "count", headerName: t("stats.count"), type: "rightAligned", minWidth: 90, flex: 0 },
       ...result.measures.map((m) => ({
         headerName: label(m, meta.measures),
         children: meta.stats.map((s) => ({
           field: `${m}_${s}`,
-          headerName: STAT_LABELS[s] ?? s,
+          headerName: t(`stats.${s}`),
           type: "rightAligned",
           minWidth: 130,
           valueFormatter: (p: { value: unknown }) =>
@@ -66,19 +66,19 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
         })),
       })),
     ];
-  }, [result, meta]);
+  }, [result, meta, t]);
 
-  const totalsRow = result ? [{ ...result.totals, ...Object.fromEntries(result.group_by.map((g, i) => [g, i === 0 ? "Total" : ""])) }] : [];
+  const totalsRow = result ? [{ ...result.totals, ...Object.fromEntries(result.group_by.map((g, i) => [g, i === 0 ? t("olap.total") : ""])) }] : [];
 
   return (
     <section className="panel">
       <div className="panel-header">
-        <h2>Analysis</h2>
+        <h2>{t("olap.title")}</h2>
       </div>
 
       <div className="olap-controls">
         <div>
-          <span className="control-label">Group by (click in order)</span>
+          <span className="control-label">{t("olap.group_by")}</span>
           <div className="chips">
             {meta.dimensions.map((d) => {
               const level = analysis.groupBy.indexOf(d.key);
@@ -96,7 +96,7 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
           </div>
         </div>
         <div>
-          <span className="control-label">Measures (average, min, max)</span>
+          <span className="control-label">{t("olap.measures")}</span>
           <div className="chips">
             {meta.measures.map((m) => (
               <button
@@ -111,7 +111,7 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
         </div>
       </div>
 
-      {analysis.measures.length === 0 && <p className="muted">Select at least one measure.</p>}
+      {analysis.measures.length === 0 && <p className="muted">{t("olap.select_measure")}</p>}
       {error && <p className="error">{error}</p>}
 
       {result && analysis.measures.length > 0 && (
@@ -121,7 +121,7 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
             columnDefs={columns}
             pinnedBottomRowData={totalsRow}
             defaultColDef={{ resizable: true, sortable: true, flex: 1 }}
-            overlayNoRowsTemplate={result.group_by.length ? "No data for this selection" : "Choose fields to group by"}
+            overlayNoRowsTemplate={result.group_by.length ? t("olap.no_data") : t("olap.choose_group")}
           />
         </div>
       )}

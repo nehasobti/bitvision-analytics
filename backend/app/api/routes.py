@@ -5,7 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
 
 from app.config import settings
-from app.schemas import FIELD_LABELS, OlapResult, OutcomeFilters, OutcomePage
+from app.i18n import dimension_label, field_labels, messages, t
+from app.schemas import OlapResult, OutcomeFilters, OutcomePage
 from app.services import olap as olap_service
 from app.services.export_excel import build_excel
 from app.services.export_pdf import build_pdf
@@ -21,11 +22,13 @@ DEFAULT_MEASURES = list(olap_service.MEASURES)
 
 @router.get("/meta")
 def meta():
-    """Fields the frontend can offer for grouping and aggregation."""
+    """Fields the frontend can offer for grouping and aggregation, plus all UI texts."""
     return {
-        "fields": FIELD_LABELS,
-        "dimensions": [{"key": k, "label": label} for k, (label, _) in olap_service.DIMENSIONS.items()],
-        "measures": [{"key": k, "label": label} for k, (label, _) in olap_service.MEASURES.items()],
+        "language": settings.app_language,
+        "messages": messages(),
+        "fields": field_labels(),
+        "dimensions": [{"key": k, "label": dimension_label(k)} for k in olap_service.DIMENSIONS],
+        "measures": [{"key": k, "label": t(f"fields.{k}")} for k in olap_service.MEASURES],
         "stats": list(olap_service.STATS),
     }
 
@@ -55,7 +58,7 @@ def olap(filters: Filters, group_by: GroupBy = [], measures: Measures = []):
 
 
 def _file_name(ext: str) -> str:
-    return f"tender_outcomes_{datetime.now():%Y%m%d_%H%M}.{ext}"
+    return f"{t('report.file_name')}_{datetime.now():%Y%m%d_%H%M}.{ext}"
 
 
 @router.get("/export/excel")

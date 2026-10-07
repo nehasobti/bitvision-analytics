@@ -7,20 +7,21 @@ from app.db import engine, tender_outcomes as t
 from app.schemas import OutcomeFilters
 from app.services.outcomes import apply_filters, to_plain
 
+# Labels come from app.i18n (dimension_label / fields.<key>).
 DIMENSIONS = {
-    "contracting_authority": ("Contracting authority", t.c.contracting_authority),
-    "location": ("Location", t.c.location),
-    "cpv": ("CPV", t.c.cpv),
-    "successful_tenderer": ("Successful tenderer", t.c.successful_tenderer),
-    "publication_year": ("Publication year", func.year(t.c.publication_date)),
-    "publication_month": ("Publication month", func.date_format(t.c.publication_date, "%Y-%m")),
-    "award_year": ("Award year", func.year(t.c.award_date)),
-    "award_month": ("Award month", func.date_format(t.c.award_date, "%Y-%m")),
+    "contracting_authority": t.c.contracting_authority,
+    "location": t.c.location,
+    "cpv": t.c.cpv,
+    "successful_tenderer": t.c.successful_tenderer,
+    "publication_year": func.year(t.c.publication_date),
+    "publication_month": func.date_format(t.c.publication_date, "%Y-%m"),
+    "award_year": func.year(t.c.award_date),
+    "award_month": func.date_format(t.c.award_date, "%Y-%m"),
 }
 
 MEASURES = {
-    "amount_awarded": ("Amount awarded (€)", t.c.amount_awarded),
-    "downside_amount": ("Downside (%)", t.c.downside_amount),
+    "amount_awarded": t.c.amount_awarded,
+    "downside_amount": t.c.downside_amount,
 }
 
 STATS = ("avg", "min", "max")
@@ -47,13 +48,13 @@ def validate(group_by: list[str], measures: list[str]) -> None:
 def _aggregates():
     return [func.count().label("count")] + [
         getattr(func, stat)(column).label(f"{key}_{stat}")
-        for key, (_label, column) in MEASURES.items()
+        for key, column in MEASURES.items()
         for stat in STATS
     ]
 
 
 def build_query(f: OutcomeFilters, group_by: list[str]):
-    dims = [DIMENSIONS[g][1].label(g) for g in group_by]
+    dims = [DIMENSIONS[g].label(g) for g in group_by]
     stmt = apply_filters(select(*dims, *_aggregates()).select_from(t), f)
     if dims:
         stmt = stmt.group_by(*dims).order_by(*dims).limit(MAX_GROUPS)
