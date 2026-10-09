@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OutcomeFilters(BaseModel):
@@ -39,6 +39,18 @@ class OutcomePage(BaseModel):
     page: int
     page_size: int
     items: list[Outcome]
+
+
+class SavedViewIn(BaseModel):
+    description: str = Field(min_length=1, max_length=255)
+    filters: dict[str, str] = {}
+    group_by: list[str] = []
+    measures: list[str] = []
+
+
+class SavedView(SavedViewIn):
+    id: int
+    created_at: datetime
 
 
 class OlapResult(BaseModel):

@@ -44,7 +44,7 @@ main { grid-area: main; padding: 16px; min-width: 0; }
   border-radius: 8px;
   padding: 16px;
 }
-.panel-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+.panel-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
 
 .filters { display: flex; flex-direction: column; gap: 12px; }
 .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
@@ -99,6 +99,33 @@ button.primary { background: var(--primary); border-color: var(--primary); color
   color: #fff;
   font-size: 11px;
 }
+
+.saved-views, .saved-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.saved-form input { width: 240px; }
+select {
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  font: inherit;
+  font-size: 13px;
+  max-width: 260px;
+}
+
+.selection-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--primary-soft);
+  font-size: 13px;
+}
+.selection-summary .stat-group { display: flex; gap: 12px; }
+.selection-summary .stat-group strong { color: var(--primary); }
 
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--error); font-size: 13px; }

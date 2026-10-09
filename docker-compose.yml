@@ -2,6 +2,9 @@ services:
   backend:
     build: ./backend
     env_file: ./backend/.env
+    # Keeps saved analyses (SQLite file) when the container is rebuilt
+    volumes:
+      - ./backend/data:/app/data
     # Inside Docker, reach MySQL on the host with host.docker.internal instead of 127.0.0.1
     extra_hosts:
       - "host.docker.internal:host-gateway"

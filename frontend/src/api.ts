@@ -59,6 +59,15 @@ export interface Analysis {
   measures: string[];
 }
 
+export interface SavedView {
+  id: number;
+  description: string;
+  filters: Filters;
+  group_by: string[];
+  measures: string[];
+  created_at: string;
+}
+
 export function buildQuery(
   filters: Filters,
   extra: Record<string, string | number | string[]> = {},
@@ -73,14 +82,16 @@ export function buildQuery(
   return params.toString();
 }
 
-async function get<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
     throw new Error(typeof body.detail === "string" ? body.detail : `Request failed (${res.status})`);
   }
-  return res.json();
+  return res.status === 204 ? (undefined as T) : res.json();
 }
+
+const get = <T,>(path: string) => request<T>(path);
 
 export const api = {
   meta: () => get<Meta>("/api/meta"),
@@ -94,6 +105,19 @@ export const api = {
     ),
   exportUrl: (format: "excel" | "pdf", filters: Filters, analysis: Analysis) =>
     `/api/export/${format}?${buildQuery(filters, { group_by: analysis.groupBy, measures: analysis.measures })}`,
+  savedViews: () => get<SavedView[]>("/api/saved-views"),
+  saveView: (description: string, filters: Filters, analysis: Analysis) =>
+    request<SavedView>("/api/saved-views", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description,
+        filters: Object.fromEntries(Object.entries(filters).filter(([, v]) => v !== undefined && v !== "")),
+        group_by: analysis.groupBy,
+        measures: analysis.measures,
+      }),
+    }),
+  deleteView: (id: number) => request<void>(`/api/saved-views/${id}`, { method: "DELETE" }),
 };
 
 const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });

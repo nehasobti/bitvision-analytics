@@ -19,12 +19,10 @@ dist/
 .idea/
 .vscode/
 
-# Database dumps
+# Database dumps, saved analyses (SQLite)
 *.sql
+backend/data/
 *.tsbuildinfo
 
 # Internal notes
 DETAILS.md
-
-# Vercel
-.vercel

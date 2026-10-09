@@ -1,10 +1,21 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
-import type { ColDef, SortChangedEvent } from "ag-grid-community";
+import type { ColDef, GridApi, RowDataUpdatedEvent, SelectionChangedEvent, SortChangedEvent } from "ag-grid-community";
 import { api, format, type Filters, type Outcome } from "../api";
 import { useT, type Translate } from "../i18n";
 
 const PAGE_SIZE = 50;
+
+// Selection changes made by the user (not by the grid reloading rows or by our own code).
+const USER_SOURCES = new Set(["checkboxSelected", "rowClicked", "uiSelectAll", "uiSelectAllCurrentPage", "uiSelectAllFiltered", "spaceKey"]);
+
+type Stats = { avg: number; min: number; max: number } | null;
+
+function stats(values: (number | null)[]): Stats {
+  const nums = values.filter((v): v is number => typeof v === "number");
+  if (nums.length === 0) return null;
+  return { avg: nums.reduce((a, b) => a + b, 0) / nums.length, min: Math.min(...nums), max: Math.max(...nums) };
+}
 
 const columns = (t: Translate): ColDef<Outcome>[] => [
   { field: "successful_tenderer", headerName: t("fields.successful_tenderer"), flex: 2, minWidth: 180 },
@@ -26,6 +37,11 @@ export default function DataTable({ filters }: { filters: Filters }) {
   const [sort, setSort] = useState({ by: "award_date", dir: "desc" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Selected rows by id; kept across pages and sorting.
+  const [selected, setSelected] = useState<Map<number, Outcome>>(new Map());
+  const selectedRef = useRef(selected);
+  selectedRef.current = selected;
+  const gridApi = useRef<GridApi<Outcome> | null>(null);
 
   useEffect(() => setPage(1), [filters]);
 
@@ -48,6 +64,46 @@ export default function DataTable({ filters }: { filters: Filters }) {
     setPage(1);
   };
 
+  const onSelectionChanged = (e: SelectionChangedEvent<Outcome>) => {
+    if (!USER_SOURCES.has(e.source)) return;
+    const next = new Map(selectedRef.current);
+    e.api.forEachNode((node) => {
+      if (!node.data) return;
+      if (node.isSelected()) next.set(node.data.id, node.data);
+      else next.delete(node.data.id);
+    });
+    setSelected(next);
+  };
+
+  // A new page/sort replaces the rows: tick again the ones selected before.
+  const onRowDataUpdated = (e: RowDataUpdatedEvent<Outcome>) => {
+    e.api.forEachNode((node) => {
+      if (node.data) node.setSelected(selectedRef.current.has(node.data.id), false, "api");
+    });
+  };
+
+  const clearSelection = () => {
+    setSelected(new Map());
+    gridApi.current?.deselectAll("api");
+  };
+
+  const summary = useMemo(() => {
+    const items = [...selected.values()];
+    return {
+      amount: stats(items.map((r) => r.amount_awarded)),
+      downside: stats(items.map((r) => r.downside_amount)),
+    };
+  }, [selected]);
+
+  const statGroup = (label: string, s: Stats, fmt: (v: unknown) => string) => (
+    <div className="stat-group">
+      <span>{label}:</span>
+      <span>{t("stats.avg")} <strong>{s ? fmt(s.avg) : "—"}</strong></span>
+      <span>{t("stats.min")} <strong>{s ? fmt(s.min) : "—"}</strong></span>
+      <span>{t("stats.max")} <strong>{s ? fmt(s.max) : "—"}</strong></span>
+    </div>
+  );
+
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
@@ -57,11 +113,26 @@ export default function DataTable({ filters }: { filters: Filters }) {
         <span className="muted">{loading ? t("app.loading") : t("data.records", { count: total.toLocaleString("it-IT") })}</span>
       </div>
       {error && <p className="error">{error}</p>}
+      {selected.size > 0 ? (
+        <div className="selection-summary">
+          <strong>{t("selection.count", { count: selected.size })}</strong>
+          {statGroup(t("fields.amount_awarded"), summary.amount, format.money)}
+          {statGroup(t("fields.downside_amount"), summary.downside, format.percent)}
+          <button type="button" onClick={clearSelection}>{t("selection.clear")}</button>
+        </div>
+      ) : (
+        <p className="muted">{t("selection.hint")}</p>
+      )}
       <div className="ag-theme-quartz grid">
         <AgGridReact<Outcome>
           rowData={rows}
           columnDefs={columnDefs}
           defaultColDef={{ resizable: true, sortable: true, wrapHeaderText: true, autoHeaderHeight: true }}
+          getRowId={(p) => String(p.data.id)}
+          rowSelection={{ mode: "multiRow", checkboxes: true, headerCheckbox: true, enableClickSelection: false }}
+          onGridReady={(e) => (gridApi.current = e.api)}
+          onSelectionChanged={onSelectionChanged}
+          onRowDataUpdated={onRowDataUpdated}
           onSortChanged={onSortChanged}
           overlayNoRowsTemplate={t("data.no_rows")}
         />

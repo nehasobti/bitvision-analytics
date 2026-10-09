@@ -1,8 +1,9 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type { Filters } from "../api";
 import { useT } from "../i18n";
 
 interface Props {
+  value: Filters;
   onApply: (filters: Filters) => void;
 }
 
@@ -39,9 +40,12 @@ const RANGE_FIELDS: [string, Field, Field][] = [
   ],
 ];
 
-export default function FiltersPanel({ onApply }: Props) {
+export default function FiltersPanel({ value, onApply }: Props) {
   const t = useT();
-  const [draft, setDraft] = useState<Filters>({});
+  const [draft, setDraft] = useState<Filters>(value);
+
+  // Show the applied filters again when they change from outside (e.g. a saved analysis is loaded).
+  useEffect(() => setDraft(value), [value]);
 
   const input = (field: Field) => (
     <input

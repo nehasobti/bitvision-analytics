@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:5173"]
     export_max_rows: int = 50_000
     app_language: str = "it"
+    saved_views_path: str = "data/saved_views.db"
 
 
 settings = Settings()

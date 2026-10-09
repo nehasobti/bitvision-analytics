@@ -6,7 +6,8 @@ from fastapi.responses import Response
 
 from app.config import settings
 from app.i18n import dimension_label, field_labels, messages, t
-from app.schemas import OlapResult, OutcomeFilters, OutcomePage
+from app import saved_views
+from app.schemas import OlapResult, OutcomeFilters, OutcomePage, SavedView, SavedViewIn
 from app.services import olap as olap_service
 from app.services.export_excel import build_excel
 from app.services.export_pdf import build_pdf
@@ -55,6 +56,33 @@ def _olap(filters: OutcomeFilters, group_by: list[str], measures: list[str]) -> 
 @router.get("/olap", response_model=OlapResult)
 def olap(filters: Filters, group_by: GroupBy = [], measures: Measures = []):
     return _olap(filters, group_by, measures)
+
+
+@router.get("/saved-views", response_model=list[SavedView])
+def list_saved_views():
+    return saved_views.list_views()
+
+
+@router.post("/saved-views", response_model=SavedView, status_code=201)
+def create_saved_view(view: SavedViewIn):
+    unknown = [k for k in view.filters if k not in OutcomeFilters.model_fields]
+    if unknown:
+        raise HTTPException(status_code=400, detail=f"Unknown filter(s): {', '.join(unknown)}")
+    _olap_check(view.group_by, view.measures)
+    return saved_views.create_view(view.description.strip(), view.filters, view.group_by, view.measures)
+
+
+@router.delete("/saved-views/{view_id}", status_code=204)
+def delete_saved_view(view_id: int):
+    if not saved_views.delete_view(view_id):
+        raise HTTPException(status_code=404, detail="Saved view not found")
+
+
+def _olap_check(group_by: list[str], measures: list[str]) -> None:
+    try:
+        olap_service.validate(group_by, measures)
+    except olap_service.OlapError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def _file_name(ext: str) -> str:

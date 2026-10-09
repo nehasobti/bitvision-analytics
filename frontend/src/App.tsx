@@ -51,7 +51,7 @@ export default function App() {
           </div>
         </header>
 
-        <FiltersPanel onApply={setFilters} />
+        <FiltersPanel value={filters} onApply={setFilters} />
 
         <main>
           <nav className="tabs">
@@ -61,7 +61,16 @@ export default function App() {
 
           {tab === "data" && <DataTable filters={filters} />}
           {tab === "analysis" && (
-            <OlapPanel meta={meta} filters={filters} analysis={analysis} onChange={setAnalysis} />
+            <OlapPanel
+              meta={meta}
+              filters={filters}
+              analysis={analysis}
+              onChange={setAnalysis}
+              onLoadView={(view) => {
+                setFilters(view.filters);
+                setAnalysis({ groupBy: view.group_by, measures: view.measures });
+              }}
+            />
           )}
         </main>
       </div>

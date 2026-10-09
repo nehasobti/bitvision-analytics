@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { AgGridReact } from "ag-grid-react";
 import type { ColDef, ColGroupDef } from "ag-grid-community";
-import { api, format, type Analysis, type Filters, type Meta, type OlapResult, type OlapRow } from "../api";
+import { api, format, type Analysis, type Filters, type Meta, type OlapResult, type OlapRow, type SavedView } from "../api";
 import { useT } from "../i18n";
+import SavedViews from "./SavedViews";
 
 interface Props {
   meta: Meta;
   filters: Filters;
   analysis: Analysis;
   onChange: (analysis: Analysis) => void;
+  onLoadView: (view: SavedView) => void;
 }
 
-export default function OlapPanel({ meta, filters, analysis, onChange }: Props) {
+export default function OlapPanel({ meta, filters, analysis, onChange, onLoadView }: Props) {
   const t = useT();
   const [result, setResult] = useState<OlapResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,7 @@ export default function OlapPanel({ meta, filters, analysis, onChange }: Props) 
     <section className="panel">
       <div className="panel-header">
         <h2>{t("olap.title")}</h2>
+        <SavedViews filters={filters} analysis={analysis} onLoad={onLoadView} />
       </div>
 
       <div className="olap-controls">

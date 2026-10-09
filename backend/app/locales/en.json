@@ -51,6 +51,19 @@
   "olap.no_data": "No data for this selection",
   "olap.choose_group": "Choose fields to group by",
 
+  "saved.choose": "Saved analyses…",
+  "saved.save": "Save analysis",
+  "saved.description": "Description",
+  "saved.confirm": "Save",
+  "saved.cancel": "Cancel",
+  "saved.delete": "Delete",
+  "saved.delete_confirm": "Delete the analysis \"{name}\"?",
+  "saved.hint": "Saves the applied filters, Group by and Measures",
+
+  "selection.count": "{count} rows selected",
+  "selection.clear": "Clear selection",
+  "selection.hint": "Select rows to see average, min and max",
+
   "report.title": "Tender outcomes report",
   "report.generated": "Generated",
   "report.records": "records",

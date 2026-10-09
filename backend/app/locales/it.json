@@ -51,6 +51,19 @@
   "olap.no_data": "Nessun dato per questa selezione",
   "olap.choose_group": "Scegli i campi per cui raggruppare",
 
+  "saved.choose": "Analisi salvate…",
+  "saved.save": "Salva analisi",
+  "saved.description": "Descrizione",
+  "saved.confirm": "Salva",
+  "saved.cancel": "Annulla",
+  "saved.delete": "Elimina",
+  "saved.delete_confirm": "Eliminare l'analisi \"{name}\"?",
+  "saved.hint": "Salva i filtri applicati, Raggruppa per e Misure",
+
+  "selection.count": "{count} righe selezionate",
+  "selection.clear": "Deseleziona tutto",
+  "selection.hint": "Seleziona le righe per vedere media, minimo e massimo",
+
   "report.title": "Report esiti di gara",
   "report.generated": "Generato il",
   "report.records": "record",
