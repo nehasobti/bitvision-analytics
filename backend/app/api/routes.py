@@ -10,7 +10,10 @@ from app import saved_views
 from app.schemas import OlapResult, OutcomeFilters, OutcomePage, SavedView, SavedViewIn
 from app.services import olap as olap_service
 from app.services.export_excel import build_excel
-from app.services.export_pdf import build_pdf
+from app.services.export_pdf import build_mining_pdf, build_pdf
+from app.services.export_excel import build_mining_excel
+from app.services.mining import MiningSettings, analyse
+from app.services.mining_report import sections
 from app.services.outcomes import all_outcomes, list_outcomes
 
 router = APIRouter(prefix="/api")
@@ -85,8 +88,42 @@ def _olap_check(group_by: list[str], measures: list[str]) -> None:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-def _file_name(ext: str) -> str:
-    return f"{t('report.file_name')}_{datetime.now():%Y%m%d_%H%M}.{ext}"
+def _file_name(ext: str, name_key: str = "report.file_name") -> str:
+    return f"{t(name_key)}_{datetime.now():%Y%m%d_%H%M}.{ext}"
+
+
+Mining = Annotated[MiningSettings, Query()]
+
+
+def _mining(filters: OutcomeFilters, mining: MiningSettings) -> dict:
+    return analyse(all_outcomes(filters, settings.export_max_rows), mining)
+
+
+@router.get("/mining")
+def mining_report(filters: Filters, mining: Mining):
+    """Anomalies in the filtered data, laid out as report sections (same as the exports)."""
+    result = _mining(filters, mining)
+    return {"records": result["records"], "settings": result["settings"], "sections": sections(result)}
+
+
+@router.get("/mining/export/excel")
+def mining_export_excel(filters: Filters, mining: Mining):
+    content = build_mining_excel(_mining(filters, mining), filters.active())
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{_file_name("xlsx", "mining.file_name")}"'},
+    )
+
+
+@router.get("/mining/export/pdf")
+def mining_export_pdf(filters: Filters, mining: Mining):
+    content = build_mining_pdf(_mining(filters, mining), filters.active())
+    return Response(
+        content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_file_name("pdf", "mining.file_name")}"'},
+    )
 
 
 @router.get("/export/excel")

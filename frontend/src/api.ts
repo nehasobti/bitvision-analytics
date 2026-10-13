@@ -68,6 +68,31 @@ export interface SavedView {
   created_at: string;
 }
 
+export interface MiningSettings {
+  outlier_k: number;
+  min_wins: number;
+  min_share: number;
+  repeat_tolerance: number;
+  min_repeats: number;
+  max_stdev: number;
+}
+
+export type MiningKind = "money" | "percent" | "date" | "int" | "number" | "text" | "list" | "direction";
+
+export interface MiningSection {
+  key: string;
+  title: string;
+  hint: string;
+  columns: [string, string, MiningKind][];
+  rows: Record<string, unknown>[];
+}
+
+export interface MiningReport {
+  records: number;
+  settings: MiningSettings;
+  sections: MiningSection[];
+}
+
 export function buildQuery(
   filters: Filters,
   extra: Record<string, string | number | string[]> = {},
@@ -118,6 +143,10 @@ export const api = {
       }),
     }),
   deleteView: (id: number) => request<void>(`/api/saved-views/${id}`, { method: "DELETE" }),
+  mining: (filters: Filters, settings: MiningSettings) =>
+    get<MiningReport>(`/api/mining?${buildQuery(filters, { ...settings })}`),
+  miningExportUrl: (format: "excel" | "pdf", filters: Filters, settings: MiningSettings) =>
+    `/api/mining/export/${format}?${buildQuery(filters, { ...settings })}`,
 };
 
 const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });

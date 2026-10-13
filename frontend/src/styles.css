@@ -127,6 +127,53 @@ select {
 .selection-summary .stat-group { display: flex; gap: 12px; }
 .selection-summary .stat-group strong { color: var(--primary); }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 24px 16px;
+  background: rgb(0 0 0 / 0.4);
+  overflow-y: auto;
+}
+.modal { width: min(1200px, 100%); }
+.modal .panel-header > div:first-child { display: flex; flex-direction: column; gap: 4px; }
+
+.mining-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 16px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.mining-settings legend { font-size: 13px; font-weight: 600; padding: 0 4px; }
+.mining-settings label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.mining-settings input:out-of-range { border-color: var(--error); background: #fef3f2; }
+
+.mining-section { margin-top: 20px; }
+.mining-section h3 { font-size: 14px; margin: 0 0 4px; color: var(--primary); }
+.mining-section .count {
+  display: inline-block;
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  font-size: 12px;
+  text-align: center;
+}
+.table-scroll { overflow-x: auto; margin-top: 6px; max-height: 360px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; }
+.mining-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.mining-table th { position: sticky; top: 0; background: var(--primary); color: #fff; text-align: left; padding: 6px 8px; white-space: nowrap; }
+.mining-table td { padding: 5px 8px; border-bottom: 1px solid var(--border); }
+.mining-table tr:nth-child(even) td { background: #f8fafc; }
+.mining-table .num { text-align: right; white-space: nowrap; }
+.mining-table .dir-high { color: var(--error); font-weight: 600; }
+.mining-table .dir-low { color: #b54708; font-weight: 600; }
+
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--error); font-size: 13px; }
 

@@ -6,6 +6,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.i18n import dimension_label, field_labels, filter_label, t
+from app.services.mining_report import sections, settings_rows
 from app.services.olap import STATS
 
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -93,6 +94,58 @@ def build_excel(data: list[dict], olap: dict, filters: dict) -> bytes:
     for key, value in filters.items():
         ws.append([filter_label(key), value.strftime("%d/%m/%Y") if isinstance(value, date) else value])
     ws.column_dimensions["A"].width = 28
+    ws.column_dimensions["B"].width = 40
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+_KIND_FORMATS = {"money": MONEY, "percent": PERCENT, "date": DATE, "int": "0", "number": "0.00"}
+
+
+def _cell(value, kind: str):
+    if kind == "list":
+        return ", ".join(value or [])
+    if kind == "direction":
+        return t(f"mining.{value}") if value else ""
+    return value
+
+
+def build_mining_excel(result: dict, filters: dict) -> bytes:
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    for section in sections(result):
+        # Excel sheet names: max 31 characters.
+        ws = wb.create_sheet(t(f"mining.sheet_{section['key']}")[:31])
+        cols = section["columns"]
+        _write_table(
+            ws,
+            [label for _, label, _ in cols],
+            [[_cell(r.get(key), kind) for key, _, kind in cols] for r in section["rows"]],
+            [_KIND_FORMATS.get(kind) for _, _, kind in cols],
+        )
+        if not section["rows"]:
+            ws.append([t("mining.none")])
+            ws.cell(ws.max_row, 1).font = Font(italic=True)
+        if section["hint"]:
+            ws.insert_rows(1)
+            ws["A1"] = section["hint"]
+            ws["A1"].font = Font(italic=True)
+            ws.freeze_panes = "A3"
+            # insert_rows does not move the filter range: set it again on the table (header now on row 2).
+            if section["rows"]:
+                ws.auto_filter.ref = f"A2:{get_column_letter(len(cols))}{ws.max_row}"
+
+    ws = wb.create_sheet(t("report.sheet_filters"))
+    ws.append([t("report.generated"), datetime.now().strftime("%d/%m/%Y %H:%M")])
+    ws.append([t("mining.records", count=result["records"]), ""])
+    for label, value in settings_rows(result):
+        ws.append([label, value])
+    for key, value in filters.items():
+        ws.append([filter_label(key), value.strftime("%d/%m/%Y") if isinstance(value, date) else value])
+    ws.column_dimensions["A"].width = 48
     ws.column_dimensions["B"].width = 40
 
     buffer = BytesIO()

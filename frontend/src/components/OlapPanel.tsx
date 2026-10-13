@@ -4,6 +4,7 @@ import type { ColDef, ColGroupDef } from "ag-grid-community";
 import { api, format, type Analysis, type Filters, type Meta, type OlapResult, type OlapRow, type SavedView } from "../api";
 import { useT } from "../i18n";
 import SavedViews from "./SavedViews";
+import MiningReport from "./MiningReport";
 
 interface Props {
   meta: Meta;
@@ -17,6 +18,7 @@ export default function OlapPanel({ meta, filters, analysis, onChange, onLoadVie
   const t = useT();
   const [result, setResult] = useState<OlapResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showMining, setShowMining] = useState(false);
 
   useEffect(() => {
     if (analysis.measures.length === 0) return;
@@ -76,8 +78,12 @@ export default function OlapPanel({ meta, filters, analysis, onChange, onLoadVie
     <section className="panel">
       <div className="panel-header">
         <h2>{t("olap.title")}</h2>
-        <SavedViews filters={filters} analysis={analysis} onLoad={onLoadView} />
+        <div className="saved-views">
+          <SavedViews filters={filters} analysis={analysis} onLoad={onLoadView} />
+          <button type="button" onClick={() => setShowMining(true)}>{t("mining.button")}</button>
+        </div>
       </div>
+      {showMining && <MiningReport filters={filters} onClose={() => setShowMining(false)} />}
 
       <div className="olap-controls">
         <div>

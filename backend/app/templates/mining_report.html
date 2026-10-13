@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  {% include "_styles.html" %}
+</head>
+<body>
+  <h1>{{ t('mining.title') }}</h1>
+  <div class="meta">{{ t('report.generated') }} {{ generated }} · {{ t('mining.records', count=records) }}</div>
+
+  <table class="filters">
+    {% for label, value in settings %}<tr><td><strong>{{ label }}</strong></td><td>{{ value|plain_number }}</td></tr>{% endfor %}
+    {% for label, value in filters.items() %}<tr><td><strong>{{ label }}</strong></td><td>{{ value }}</td></tr>{% endfor %}
+  </table>
+
+  {% for section in sections %}
+  <h2>{{ section.title }} ({{ section.rows|length }})</h2>
+  {% if section.hint %}<p class="hint">{{ section.hint }}</p>{% endif %}
+  {% if section.rows %}
+  <table>
+    <thead>
+      <tr>{% for _, label, kind in section.columns %}<th class="{{ 'num' if kind in ('money', 'percent', 'int', 'number') }}">{{ label }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in section.rows %}
+      <tr>{% for key, _, kind in section.columns %}<td class="{{ 'num' if kind in ('money', 'percent', 'int', 'number') }}">{{ row[key]|cell(kind) }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="meta">{{ t('mining.none') }}</p>
+  {% endif %}
+  {% endfor %}
+</body>
+</html>
