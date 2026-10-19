@@ -4,8 +4,9 @@ import { I18nProvider, makeTranslate } from "./i18n";
 import FiltersPanel from "./components/FiltersPanel";
 import DataTable from "./components/DataTable";
 import OlapPanel from "./components/OlapPanel";
+import MyTenders from "./components/MyTenders";
 
-type Tab = "data" | "analysis";
+type Tab = "data" | "analysis" | "my_tenders";
 
 export default function App() {
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -35,29 +36,36 @@ export default function App() {
   }
 
   const canExport = analysis.measures.length > 0;
+  // "Le mie gare" has its own filters and exports; the outcome filters don't apply there.
+  const outcomesTab = tab !== "my_tenders";
 
   return (
     <I18nProvider value={t}>
-      <div className="layout">
+      <div className={`layout ${outcomesTab ? "" : "no-side"}`}>
         <header className="topbar">
           <h1>{t("app.title")}</h1>
-          <div className="exports">
-            <a className={`button ${canExport ? "" : "disabled"}`} href={api.exportUrl("excel", filters, analysis)}>
-              {t("export.excel")}
-            </a>
-            <a className={`button ${canExport ? "" : "disabled"}`} href={api.exportUrl("pdf", filters, analysis)}>
-              {t("export.pdf")}
-            </a>
-          </div>
+          {outcomesTab && (
+            <div className="exports">
+              <a className={`button ${canExport ? "" : "disabled"}`} href={api.exportUrl("excel", filters, analysis)}>
+                {t("export.excel")}
+              </a>
+              <a className={`button ${canExport ? "" : "disabled"}`} href={api.exportUrl("pdf", filters, analysis)}>
+                {t("export.pdf")}
+              </a>
+            </div>
+          )}
         </header>
 
-        <FiltersPanel value={filters} onApply={setFilters} />
+        {outcomesTab && <FiltersPanel value={filters} onApply={setFilters} />}
 
         <main>
           <nav className="tabs">
             <button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>{t("tabs.data")}</button>
             <button className={tab === "analysis" ? "active" : ""} onClick={() => setTab("analysis")}>{t("tabs.analysis")}</button>
+            <button className={tab === "my_tenders" ? "active" : ""} onClick={() => setTab("my_tenders")}>{t("tabs.my_tenders")}</button>
           </nav>
+
+          {tab === "my_tenders" && <MyTenders meta={meta} />}
 
           {tab === "data" && <DataTable filters={filters} />}
           {tab === "analysis" && (

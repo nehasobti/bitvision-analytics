@@ -10,10 +10,11 @@ from app import saved_views
 from app.schemas import OlapResult, OutcomeFilters, OutcomePage, SavedView, SavedViewIn
 from app.services import olap as olap_service
 from app.services.export_excel import build_excel
-from app.services.export_pdf import build_mining_pdf, build_pdf
-from app.services.export_excel import build_mining_excel
+from app.services.export_pdf import build_mining_pdf, build_my_tenders_pdf, build_pdf
+from app.services.export_excel import build_mining_excel, build_my_tenders_excel
 from app.services.mining import MiningSettings, analyse
 from app.services.mining_report import sections
+from app.services import my_tenders as my_tenders_service
 from app.services.outcomes import all_outcomes, list_outcomes
 
 router = APIRouter(prefix="/api")
@@ -34,6 +35,7 @@ def meta():
         "dimensions": [{"key": k, "label": dimension_label(k)} for k in olap_service.DIMENSIONS],
         "measures": [{"key": k, "label": t(f"fields.{k}")} for k in olap_service.MEASURES],
         "stats": list(olap_service.STATS),
+        "tender_statuses": my_tenders_service.STATUSES,
     }
 
 
@@ -123,6 +125,47 @@ def mining_export_pdf(filters: Filters, mining: Mining):
         content,
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{_file_name("pdf", "mining.file_name")}"'},
+    )
+
+
+MyTenders = Annotated[my_tenders_service.MyTendersFilters, Query()]
+
+
+@router.get("/my-tenders/aziende")
+def my_tenders_aziende():
+    """Companies the user can pick in 'Le mie gare' (the app has no login)."""
+    return my_tenders_service.list_aziende()
+
+
+@router.get("/my-tenders")
+def my_tenders(filters: MyTenders):
+    """Tenders the company took part in, with our ribasso vs the winner's."""
+    return my_tenders_service.my_tenders(filters)
+
+
+def _azienda_name(azienda_id: int | None) -> str | None:
+    return next((a["name"] for a in my_tenders_service.list_aziende() if a["id"] == azienda_id), None)
+
+
+@router.get("/my-tenders/export/excel")
+def my_tenders_export_excel(filters: MyTenders):
+    result = my_tenders_service.my_tenders(filters)
+    content = build_my_tenders_excel(result, filters.active(), _azienda_name(filters.azienda_id))
+    return Response(
+        content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{_file_name("xlsx", "my.file_name")}"'},
+    )
+
+
+@router.get("/my-tenders/export/pdf")
+def my_tenders_export_pdf(filters: MyTenders):
+    result = my_tenders_service.my_tenders(filters)
+    content = build_my_tenders_pdf(result, filters.active(), _azienda_name(filters.azienda_id))
+    return Response(
+        content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{_file_name("pdf", "my.file_name")}"'},
     )
 
 

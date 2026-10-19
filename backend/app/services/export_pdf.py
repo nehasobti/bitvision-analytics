@@ -7,6 +7,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from app.i18n import dimension_label, field_labels, filter_label, t
 from app.services.mining_report import sections, settings_rows
+from app.services.my_tenders_report import columns as my_columns, filter_rows, summary_rows
 from app.services.olap import STATS
 
 TEMPLATES = Environment(
@@ -45,6 +46,12 @@ def _cell(value, kind: str) -> str:
         return ", ".join(value)
     if kind == "direction":
         return t(f"mining.{value}")
+    if kind == "status":
+        return t(f"status.{value}")
+    if kind == "result":
+        return t(f"my.{value}")
+    if kind == "points":
+        return f"{value:+.3f}".replace(".", ",")
     return str(value)
 
 
@@ -110,4 +117,15 @@ def build_mining_pdf(result: dict, filters: dict) -> bytes:
         filters={filter_label(k): _date(v) if isinstance(v, date) else v for k, v in filters.items()},
         settings=settings_rows(result),
         sections=sections(result),
+    )
+
+
+def build_my_tenders_pdf(result: dict, filters: dict, azienda_name: str | None) -> bytes:
+    return _render(
+        "my_tenders_report.html",
+        generated=datetime.now().strftime("%d/%m/%Y %H:%M"),
+        filters=filter_rows(filters, azienda_name),
+        summary=summary_rows(result["summary"]),
+        columns=my_columns(),
+        rows=result["rows"],
     )

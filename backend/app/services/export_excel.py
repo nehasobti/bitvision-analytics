@@ -7,6 +7,7 @@ from openpyxl.utils import get_column_letter
 
 from app.i18n import dimension_label, field_labels, filter_label, t
 from app.services.mining_report import sections, settings_rows
+from app.services.my_tenders_report import columns as my_columns, filter_rows, summary_rows
 from app.services.olap import STATS
 
 HEADER_FONT = Font(bold=True, color="FFFFFF")
@@ -101,7 +102,7 @@ def build_excel(data: list[dict], olap: dict, filters: dict) -> bytes:
     return buffer.getvalue()
 
 
-_KIND_FORMATS = {"money": MONEY, "percent": PERCENT, "date": DATE, "int": "0", "number": "0.00"}
+_KIND_FORMATS = {"money": MONEY, "percent": PERCENT, "date": DATE, "int": "0", "number": "0.00", "points": "+0.000;-0.000;0.000"}
 
 
 def _cell(value, kind: str):
@@ -109,6 +110,10 @@ def _cell(value, kind: str):
         return ", ".join(value or [])
     if kind == "direction":
         return t(f"mining.{value}") if value else ""
+    if kind == "status":
+        return t(f"status.{value}") if value else ""
+    if kind == "result":
+        return t(f"my.{value}") if value else ""
     return value
 
 
@@ -145,6 +150,41 @@ def build_mining_excel(result: dict, filters: dict) -> bytes:
         ws.append([label, value])
     for key, value in filters.items():
         ws.append([filter_label(key), value.strftime("%d/%m/%Y") if isinstance(value, date) else value])
+    ws.column_dimensions["A"].width = 48
+    ws.column_dimensions["B"].width = 40
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def build_my_tenders_excel(result: dict, filters: dict, azienda_name: str | None) -> bytes:
+    wb = Workbook()
+
+    ws = wb.active
+    ws.title = t("my.sheet")[:31]
+    cols = my_columns()
+    _write_table(
+        ws,
+        [label for _, label, _ in cols],
+        [[_cell(r.get(key), kind) for key, _, kind in cols] for r in result["rows"]],
+        [_KIND_FORMATS.get(kind) for _, _, kind in cols],
+    )
+    if not result["rows"]:
+        ws.append([t("my.none")])
+        ws.cell(ws.max_row, 1).font = Font(italic=True)
+
+    ws = wb.create_sheet(t("report.sheet_filters"))
+    ws.append([t("report.generated"), datetime.now().strftime("%d/%m/%Y %H:%M")])
+    for label, value in filter_rows(filters, azienda_name):
+        ws.append([label, value])
+    ws.append([])
+    for label, value, kind in summary_rows(result["summary"]):
+        ws.append([label, value])
+        ws.cell(ws.max_row, 2).number_format = _KIND_FORMATS.get(kind, "General")
+    ws.append([])
+    ws.append([t("my.hint")])
+    ws.cell(ws.max_row, 1).font = Font(italic=True)
     ws.column_dimensions["A"].width = 48
     ws.column_dimensions["B"].width = 40
 

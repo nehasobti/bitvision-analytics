@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  {% include "_styles.html" %}
+</head>
+<body>
+  <h1>{{ t('my.title') }}</h1>
+  <div class="meta">{{ t('report.generated') }} {{ generated }}</div>
+
+  <table class="filters">
+    {% for label, value in filters %}<tr><td><strong>{{ label }}</strong></td><td>{{ value }}</td></tr>{% endfor %}
+    {% for label, value, kind in summary %}<tr><td><strong>{{ label }}</strong></td><td>{{ value|cell(kind) if value is not none else '—' }}</td></tr>{% endfor %}
+  </table>
+  <p class="hint">{{ t('my.hint') }}</p>
+
+  {% if rows %}
+  <table>
+    <thead>
+      <tr>{% for _, label, kind in columns %}<th class="{{ 'num' if kind in ('money', 'percent', 'int', 'points') }}">{{ label }}</th>{% endfor %}</tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>{% for key, _, kind in columns %}<td class="{{ 'num' if kind in ('money', 'percent', 'int', 'points') }}">{{ row[key]|cell(kind) }}</td>{% endfor %}</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="meta">{{ t('my.none') }}</p>
+  {% endif %}
+</body>
+</html>

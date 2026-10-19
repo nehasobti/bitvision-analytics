@@ -43,6 +43,60 @@ export interface Meta {
   dimensions: Option[];
   measures: Option[];
   stats: string[];
+  tender_statuses: string[];
+}
+
+// "Le mie gare": tenders the company took part in, our ribasso vs the winner's.
+export type TenderResult = "won" | "lost" | "not_ranked" | "no_outcome";
+
+export interface MyTendersFilters {
+  azienda_id?: number;
+  q?: string;
+  status?: string; // one tender status, or "concluded"
+  result?: TenderResult;
+  deadline_from?: string;
+  deadline_to?: string;
+}
+
+export interface MyTenderRow {
+  tender_id: number;
+  title: string;
+  cig: string | null;
+  contracting_authority: string | null;
+  status: string | null;
+  submission_deadline: string | null;
+  base_amount: number | null;
+  participants_count: number;
+  our_position: number | null;
+  our_downside: number | null;
+  winner: string | null;
+  winner_downside: number | null;
+  difference: number | null;
+  result: TenderResult;
+}
+
+export interface MyTendersSummary {
+  tenders: number;
+  with_outcome: number;
+  won: number;
+  lost: number;
+  not_ranked: number;
+  difference_avg: number | null;
+  difference_min: number | null;
+  difference_max: number | null;
+}
+
+export interface Azienda {
+  id: number;
+  name: string;
+}
+
+function myTendersQuery(f: MyTendersFilters): string {
+  const params = new URLSearchParams();
+  Object.entries(f).forEach(([key, value]) => {
+    if (value !== undefined && value !== "") params.append(key, String(value));
+  });
+  return params.toString();
 }
 
 export type OlapRow = Record<string, string | number | null>;
@@ -147,6 +201,11 @@ export const api = {
     get<MiningReport>(`/api/mining?${buildQuery(filters, { ...settings })}`),
   miningExportUrl: (format: "excel" | "pdf", filters: Filters, settings: MiningSettings) =>
     `/api/mining/export/${format}?${buildQuery(filters, { ...settings })}`,
+  aziende: () => get<Azienda[]>("/api/my-tenders/aziende"),
+  myTenders: (f: MyTendersFilters) =>
+    get<{ rows: MyTenderRow[]; summary: MyTendersSummary }>(`/api/my-tenders?${myTendersQuery(f)}`),
+  myTendersExportUrl: (format: "excel" | "pdf", f: MyTendersFilters) =>
+    `/api/my-tenders/export/${format}?${myTendersQuery(f)}`,
 };
 
 const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
@@ -156,4 +215,6 @@ export const format = {
   money: (v: unknown) => (typeof v === "number" ? money.format(v) : ""),
   percent: (v: unknown) => (typeof v === "number" ? `${percent.format(v)}%` : ""),
   date: (v: unknown) => (typeof v === "string" ? new Date(v).toLocaleDateString("it-IT") : ""),
+  // Signed difference in percentage points, e.g. "-3,300".
+  points: (v: unknown) => (typeof v === "number" ? `${v > 0 ? "+" : ""}${percent.format(v)}` : ""),
 };
