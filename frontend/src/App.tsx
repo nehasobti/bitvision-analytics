@@ -5,8 +5,9 @@ import FiltersPanel from "./components/FiltersPanel";
 import DataTable from "./components/DataTable";
 import OlapPanel from "./components/OlapPanel";
 import MyTenders from "./components/MyTenders";
+import Budget from "./components/Budget";
 
-type Tab = "data" | "analysis" | "my_tenders";
+type Tab = "data" | "analysis" | "my_tenders" | "budget";
 
 export default function App() {
   const [meta, setMeta] = useState<Meta | null>(null);
@@ -36,8 +37,8 @@ export default function App() {
   }
 
   const canExport = analysis.measures.length > 0;
-  // "Le mie gare" has its own filters and exports; the outcome filters don't apply there.
-  const outcomesTab = tab !== "my_tenders";
+  // "Le mie gare" and "Gestione budget" have their own controls; the outcome filters don't apply there.
+  const outcomesTab = tab === "data" || tab === "analysis";
 
   return (
     <I18nProvider value={t}>
@@ -63,9 +64,11 @@ export default function App() {
             <button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")}>{t("tabs.data")}</button>
             <button className={tab === "analysis" ? "active" : ""} onClick={() => setTab("analysis")}>{t("tabs.analysis")}</button>
             <button className={tab === "my_tenders" ? "active" : ""} onClick={() => setTab("my_tenders")}>{t("tabs.my_tenders")}</button>
+            <button className={tab === "budget" ? "active" : ""} onClick={() => setTab("budget")}>{t("tabs.budget")}</button>
           </nav>
 
           {tab === "my_tenders" && <MyTenders meta={meta} />}
+          {tab === "budget" && <Budget />}
 
           {tab === "data" && <DataTable filters={filters} />}
           {tab === "analysis" && (

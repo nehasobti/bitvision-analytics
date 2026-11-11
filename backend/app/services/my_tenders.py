@@ -56,6 +56,11 @@ def _status_codes(keys: list[str]) -> list[int]:
     return [STATUSES.index(k) for k in wanted]
 
 
+def _authority():
+    """Contracting authority name: the user's agency name, or first + last name."""
+    return func.coalesce(func.nullif(users.c.agency_name, ""), func.concat_ws(" ", users.c.firstname, users.c.lastname))
+
+
 def _tenders_query(f: MyTendersFilters):
     company_users = select(users.c.id).where(users.c.azienda_id == f.azienda_id)
     saved = select(tender_bookmarks.c.tender_id).where(
@@ -63,9 +68,7 @@ def _tenders_query(f: MyTendersFilters):
     )
     participated = select(tender_participants.c.tender_id).where(tender_participants.c.user_id.in_(company_users))
 
-    authority = func.coalesce(
-        func.nullif(users.c.agency_name, ""), func.concat_ws(" ", users.c.firstname, users.c.lastname)
-    ).label("contracting_authority")
+    authority = _authority().label("contracting_authority")
 
     stmt = (
         select(
@@ -143,6 +146,29 @@ def compare(row: dict, participants: list[dict], azienda_id: int | None) -> dict
         "difference": difference,
         "result": result,
     }
+
+
+def tender_info(tender_id: int) -> dict | None:
+    """Title, CIG, base amount and contracting authority of one BitVision tender."""
+    stmt = (
+        select(tenders.c.id, tenders.c.title, tenders.c.cig, tenders.c.base_amount, _authority().label("contracting_authority"))
+        .select_from(tenders.outerjoin(users, users.c.id == tenders.c.contracting_authority_id))
+        .where(tenders.c.id == tender_id)
+    )
+    with engine.connect() as conn:
+        row = conn.execute(stmt).first()
+    return {k: to_plain(v) for k, v in row._mapping.items()} if row else None
+
+
+def company_tenders(azienda_id: int) -> list[dict]:
+    """The company's tenders (same rule as the page), for the 'Gestione budget' tender picker."""
+    with engine.connect() as conn:
+        rows = conn.execute(_tenders_query(MyTendersFilters(azienda_id=azienda_id)))
+        return [
+            {"id": r.tender_id, "title": r.title, "cig": r.cig, "base_amount": to_plain(r.base_amount),
+             "contracting_authority": r.contracting_authority}
+            for r in rows
+        ]
 
 
 def summarise(rows: list[dict]) -> dict:

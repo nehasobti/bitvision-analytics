@@ -165,12 +165,69 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, init);
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(typeof body.detail === "string" ? body.detail : `Request failed (${res.status})`);
+    // FastAPI validation errors (422) come as a list of {msg}.
+    const detail = Array.isArray(body.detail)
+      ? body.detail.map((d: { msg?: string }) => (d.msg ?? "").replace(/^Value error, /, "")).join("; ")
+      : body.detail;
+    throw new Error(typeof detail === "string" && detail ? detail : `Request failed (${res.status})`);
   }
   return res.status === 204 ? (undefined as T) : res.json();
 }
 
 const get = <T,>(path: string) => request<T>(path);
+
+const send = <T,>(method: string, path: string, body: unknown) =>
+  request<T>(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+
+// "Gestione budget"
+export type BudgetKind = "unit" | "lump_sum" | "percentage";
+
+export interface BudgetLine {
+  id: number;
+  position: number;
+  kind: BudgetKind;
+  task: string;
+  quantity: number | null; // Unità di misura (a percentage for kind "percentage")
+  unit_price: number | null;
+  total: number | null;
+  note: string | null;
+  refs: number[];
+}
+
+export interface BudgetLineIn {
+  kind: BudgetKind;
+  task: string;
+  quantity?: number | null;
+  unit_price?: number | null;
+  total?: number | null;
+  note?: string | null;
+  refs?: number[];
+}
+
+export interface BudgetTender {
+  id: number;
+  title: string;
+  cig: string | null;
+  base_amount: number | null;
+  contracting_authority: string | null;
+}
+
+export interface Budget {
+  tender: BudgetTender;
+  safety_costs: number | null;
+  lines: BudgetLine[];
+  lines_total: number;
+}
+
+export const budgetApi = {
+  tenders: (aziendaId: number) => get<BudgetTender[]>(`/api/budget/tenders?azienda_id=${aziendaId}`),
+  get: (tenderId: number) => get<Budget>(`/api/budget/${tenderId}`),
+  setSafetyCosts: (tenderId: number, value: number | null) => send<Budget>("PUT", `/api/budget/${tenderId}`, { safety_costs: value }),
+  addLine: (tenderId: number, line: BudgetLineIn) => send<Budget>("POST", `/api/budget/${tenderId}/lines`, line),
+  updateLine: (tenderId: number, id: number, line: BudgetLineIn) => send<Budget>("PUT", `/api/budget/${tenderId}/lines/${id}`, line),
+  deleteLine: (tenderId: number, id: number) => request<Budget>(`/api/budget/${tenderId}/lines/${id}`, { method: "DELETE" }),
+  reorder: (tenderId: number, ids: number[]) => send<Budget>("PUT", `/api/budget/${tenderId}/lines/order`, { ids }),
+};
 
 export const api = {
   meta: () => get<Meta>("/api/meta"),

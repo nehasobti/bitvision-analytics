@@ -195,6 +195,32 @@ select {
 .badge-not_ranked { background: #fef0c7; color: #b54708; }
 .badge-no_outcome { background: #f2f4f7; color: var(--muted); }
 
+/* "Gestione budget" tab */
+.budget-head { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 260px)); gap: 10px; margin-bottom: 12px; }
+.budget-head input { margin-top: 2px; font-size: 16px; font-weight: 600; }
+.budget-add { margin-bottom: 12px; flex-wrap: wrap; }
+.budget-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  background: var(--primary-soft);
+}
+.budget-form > strong { width: 100%; color: var(--primary); }
+.budget-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; min-width: 140px; }
+.budget-form label.wide { flex: 1; min-width: 220px; }
+.budget-refs { width: 100%; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.budget-refs legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.budget-refs label.check { flex-direction: row; align-items: center; gap: 6px; min-width: 0; font-weight: 400; font-size: 13px; }
+.budget-refs input { width: auto; }
+.budget-table tfoot td { border-top: 2px solid var(--primary); background: var(--primary-soft); }
+.budget-table .row-actions { white-space: nowrap; text-align: right; }
+.budget-table .row-actions button { padding: 3px 8px; margin-left: 4px; font-size: 12px; }
+
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--error); font-size: 13px; }
 

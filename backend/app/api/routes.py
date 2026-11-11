@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.i18n import dimension_label, field_labels, messages, t
@@ -15,6 +16,7 @@ from app.services.export_excel import build_mining_excel, build_my_tenders_excel
 from app.services.mining import MiningSettings, analyse
 from app.services.mining_report import sections
 from app.services import my_tenders as my_tenders_service
+from app.services import budget as budget_service
 from app.services.outcomes import all_outcomes, list_outcomes
 
 router = APIRouter(prefix="/api")
@@ -167,6 +169,74 @@ def my_tenders_export_pdf(filters: MyTenders):
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{_file_name("pdf", "my.file_name")}"'},
     )
+
+
+@router.get("/budget/tenders")
+def budget_tenders(azienda_id: int):
+    """Tenders of the company that can get a budget."""
+    return my_tenders_service.company_tenders(azienda_id)
+
+
+class SafetyCostsIn(BaseModel):
+    safety_costs: float | None = Field(None, ge=0)
+
+
+class LineOrderIn(BaseModel):
+    ids: list[int]
+
+
+def _budget_tender(tender_id: int) -> dict:
+    tender = my_tenders_service.tender_info(tender_id)
+    if tender is None:
+        raise HTTPException(status_code=404, detail="Tender not found")
+    return tender
+
+
+@router.get("/budget/{tender_id}")
+def get_budget(tender_id: int):
+    """Base d'asta from BitVision plus the budget saved in this app."""
+    return {"tender": _budget_tender(tender_id), **budget_service.get_budget(tender_id)}
+
+
+@router.put("/budget/{tender_id}")
+def set_safety_costs(tender_id: int, body: SafetyCostsIn):
+    _budget_tender(tender_id)
+    budget_service.set_safety_costs(tender_id, body.safety_costs)
+    return get_budget(tender_id)
+
+
+def _budget_change(action, *args):
+    try:
+        action(*args)
+    except budget_service.BudgetError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/budget/{tender_id}/lines")
+def add_budget_line(tender_id: int, line: budget_service.BudgetLineIn):
+    _budget_tender(tender_id)
+    _budget_change(budget_service.add_line, tender_id, line)
+    return get_budget(tender_id)
+
+
+@router.put("/budget/{tender_id}/lines/order")
+def reorder_budget_lines(tender_id: int, body: LineOrderIn):
+    _budget_change(budget_service.reorder_lines, tender_id, body.ids)
+    return get_budget(tender_id)
+
+
+@router.put("/budget/{tender_id}/lines/{line_id}")
+def update_budget_line(tender_id: int, line_id: int, line: budget_service.BudgetLineIn):
+    _budget_change(budget_service.update_line, tender_id, line_id, line)
+    return get_budget(tender_id)
+
+
+@router.delete("/budget/{tender_id}/lines/{line_id}")
+def delete_budget_line(tender_id: int, line_id: int):
+    _budget_change(budget_service.delete_line, tender_id, line_id)
+    return get_budget(tender_id)
 
 
 @router.get("/export/excel")
