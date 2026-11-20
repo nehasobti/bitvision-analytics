@@ -47,6 +47,8 @@ export default function Budget() {
   const [error, setError] = useState<string | null>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
+  // A change is being sent: buttons are disabled so a second click can't add the row twice.
+  const [saving, setSaving] = useState(false);
 
   const fail = (e: Error) => setError(e.message);
 
@@ -94,7 +96,7 @@ export default function Budget() {
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (tenderId === null || !draft) return;
+    if (tenderId === null || !draft || saving) return;
     const line = {
       kind: draft.kind,
       task: draft.task,
@@ -104,11 +106,12 @@ export default function Budget() {
       note: draft.note,
       refs: draft.refs,
     };
+    setSaving(true);
     const call = draft.id === null ? budgetApi.addLine(tenderId, line) : budgetApi.updateLine(tenderId, draft.id, line);
     call.then((data) => {
       show(data);
       setDraft(null);
-    }).catch(failAndReload);
+    }).catch(failAndReload).finally(() => setSaving(false));
   };
 
   // Moves the row at index `from` to index `to` (arrows and drag and drop).
@@ -122,8 +125,9 @@ export default function Budget() {
   };
 
   const remove = (line: BudgetLine) => {
-    if (tenderId === null || !window.confirm(t("budget.delete_confirm", { name: line.task }))) return;
-    budgetApi.deleteLine(tenderId, line.id).then(show).catch(failAndReload);
+    if (tenderId === null || saving || !window.confirm(t("budget.delete_confirm", { name: line.task }))) return;
+    setSaving(true);
+    budgetApi.deleteLine(tenderId, line.id).then(show).catch(failAndReload).finally(() => setSaving(false));
   };
 
   const endDrag = () => {
@@ -213,8 +217,8 @@ export default function Budget() {
           <input {...cell} value={d.note} onChange={set("note")} aria-label={t("budget.col_note")} />
         </td>
         <td className="row-actions">
-          <button type="submit" form={EDIT_FORM} className="primary" disabled={d.kind === "percentage" && d.refs.length === 0}>
-            {t("budget.save")}
+          <button type="submit" form={EDIT_FORM} className="primary" disabled={saving || (d.kind === "percentage" && d.refs.length === 0)}>
+            {saving ? t("budget.saving") : t("budget.save")}
           </button>
           <button type="button" onClick={() => setDraft(null)}>{t("budget.cancel")}</button>
         </td>
@@ -321,8 +325,8 @@ export default function Budget() {
               </label>
               {draft.kind === "percentage" && refsPicker(draft)}
               <div className="actions">
-                <button type="submit" className="primary" disabled={draft.kind === "percentage" && draft.refs.length === 0}>
-                  {t("budget.add")}
+                <button type="submit" className="primary" disabled={saving || (draft.kind === "percentage" && draft.refs.length === 0)}>
+                  {saving ? t("budget.saving") : t("budget.add")}
                 </button>
                 <button type="button" onClick={() => setDraft(null)}>{t("budget.cancel")}</button>
               </div>

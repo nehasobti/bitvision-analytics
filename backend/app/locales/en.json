@@ -46,6 +46,7 @@
   "budget.no_tasks": "Add other tasks first",
   "budget.add": "Add",
   "budget.save": "Save",
+  "budget.saving": "Saving…",
   "budget.cancel": "Cancel",
   "budget.edit": "Edit",
   "budget.delete": "Delete",
