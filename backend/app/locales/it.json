@@ -51,10 +51,12 @@
   "budget.delete": "Elimina",
   "budget.move_up": "Sposta su",
   "budget.move_down": "Sposta giù",
+  "budget.drag": "Trascina per spostare la riga",
   "budget.delete_confirm": "Eliminare la riga \"{name}\"?",
   "budget.total": "Totale",
   "budget.empty": "Nessun task: aggiungine uno con i pulsanti sopra",
-  "budget.percent_of": "{pct}% di {count} task",
+  "budget.percent_of": "{pct}% di {tasks}",
+  "budget.dblclick_edit": "Doppio clic per modificare la riga",
 
   "my.title": "Le mie gare · confronto con l'aggiudicatario",
   "my.azienda": "Azienda",

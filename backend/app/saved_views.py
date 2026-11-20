@@ -1,21 +1,16 @@
 """Saved analyses (filters + group by + measures, with a description).
 
-Stored in a small SQLite file owned by this app, so the BitVision database
-stays read-only. Set SAVED_VIEWS_PATH to change where the file lives.
+Stored in the app's own database (see app/store.py), so the BitVision database
+stays read-only.
 """
 
 import json
 from datetime import datetime
-from pathlib import Path
 
-from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, Text, create_engine, delete, insert, select
+from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, Text, delete, insert, select
 
-from app.config import settings
+from app.store import engine
 
-_path = Path(settings.saved_views_path)
-_path.parent.mkdir(parents=True, exist_ok=True)
-
-engine = create_engine(f"sqlite:///{_path}")
 metadata = MetaData()
 
 saved_views = Table(

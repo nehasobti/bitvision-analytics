@@ -51,10 +51,12 @@
   "budget.delete": "Delete",
   "budget.move_up": "Move up",
   "budget.move_down": "Move down",
+  "budget.drag": "Drag to move the row",
   "budget.delete_confirm": "Delete the row \"{name}\"?",
   "budget.total": "Total",
   "budget.empty": "No tasks yet: add one with the buttons above",
-  "budget.percent_of": "{pct}% of {count} tasks",
+  "budget.percent_of": "{pct}% of {tasks}",
+  "budget.dblclick_edit": "Double-click to edit the row",
 
   "my.title": "My tenders · comparison with the winner",
   "my.azienda": "Company",

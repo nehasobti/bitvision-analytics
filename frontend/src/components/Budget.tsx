@@ -1,11 +1,12 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
 import { api, budgetApi, format, type Azienda, type Budget as BudgetData, type BudgetKind, type BudgetLine, type BudgetTender } from "../api";
 import { useT } from "../i18n";
 
 const KINDS: BudgetKind[] = ["unit", "lump_sum", "percentage"];
 const decimal = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 4 });
+const EDIT_FORM = "budget-row-edit"; // the table row inputs belong to this form via their `form` attribute
 
-// Values typed in the add/edit form (kept as strings while editing).
+// Values typed in the add form or in the row being edited (kept as strings while editing).
 interface Draft {
   id: number | null; // null = new row
   kind: BudgetKind;
@@ -44,6 +45,8 @@ export default function Budget() {
   const [safety, setSafety] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [overIndex, setOverIndex] = useState<number | null>(null);
 
   const fail = (e: Error) => setError(e.message);
 
@@ -68,6 +71,12 @@ export default function Budget() {
     setBudget(data);
     setSafety(data.safety_costs?.toString() ?? "");
     setError(null);
+  };
+
+  // After a failed change, reload so the page shows what is really saved.
+  const failAndReload = (e: Error) => {
+    if (tenderId !== null) budgetApi.get(tenderId).then(setBudget).catch(() => undefined);
+    fail(e);
   };
 
   useEffect(() => {
@@ -99,29 +108,140 @@ export default function Budget() {
     call.then((data) => {
       show(data);
       setDraft(null);
-    }).catch(fail);
+    }).catch(failAndReload);
   };
 
-  const move = (index: number, step: -1 | 1) => {
-    if (tenderId === null || !budget) return;
-    const ids = budget.lines.map((l) => l.id);
-    [ids[index], ids[index + step]] = [ids[index + step], ids[index]];
-    budgetApi.reorder(tenderId, ids).then(show).catch(fail);
+  // Moves the row at index `from` to index `to` (arrows and drag and drop).
+  const move = (from: number, to: number) => {
+    if (tenderId === null || !budget || from === to) return;
+    const lines = [...budget.lines];
+    const [moved] = lines.splice(from, 1);
+    lines.splice(to, 0, moved);
+    setBudget({ ...budget, lines }); // show the new order at once, the server answer confirms it
+    budgetApi.reorder(tenderId, lines.map((l) => l.id)).then(show).catch(failAndReload);
   };
 
   const remove = (line: BudgetLine) => {
     if (tenderId === null || !window.confirm(t("budget.delete_confirm", { name: line.task }))) return;
-    budgetApi.deleteLine(tenderId, line.id).then(show).catch(fail);
+    budgetApi.deleteLine(tenderId, line.id).then(show).catch(failAndReload);
+  };
+
+  const endDrag = () => {
+    setDragIndex(null);
+    setOverIndex(null);
+  };
+
+  // Line shown where the dragged row will land.
+  const dropClass = (index: number) => {
+    if (dragIndex === null || overIndex !== index || dragIndex === index) return "";
+    return index < dragIndex ? "drop-before" : "drop-after";
+  };
+
+  const lines = budget?.lines ?? [];
+  const editingId = draft?.id ?? null; // row edited in the table, if any
+  const otherLines = lines.filter((l) => l.id !== editingId);
+
+  const taskNames = (refs: number[]) =>
+    refs.map((id) => lines.find((l) => l.id === id)?.task).filter(Boolean).join(", ");
+
+  // Total shown while editing a row, before saving.
+  const previewTotal = (d: Draft): number | null => {
+    const qty = num(d.quantity);
+    if (d.kind === "lump_sum") return num(d.total);
+    if (d.kind === "unit") return qty !== null && num(d.unit_price) !== null ? qty * (num(d.unit_price) as number) : null;
+    if (qty === null) return null;
+    const base = lines.filter((l) => d.refs.includes(l.id)).reduce((sum, l) => sum + (l.total ?? 0), 0);
+    return (base * qty) / 100;
   };
 
   const quantityCell = (line: BudgetLine) => {
     if (line.quantity === null) return "";
-    return line.kind === "percentage"
-      ? `${decimal.format(line.quantity)}%`
-      : decimal.format(line.quantity);
+    return line.kind === "percentage" ? `${decimal.format(line.quantity)}%` : decimal.format(line.quantity);
   };
 
-  const otherLines = budget?.lines.filter((l) => l.id !== draft?.id) ?? [];
+  const toggleRef = (d: Draft, id: number, checked: boolean) =>
+    setDraft({ ...d, refs: checked ? [...d.refs, id] : d.refs.filter((r) => r !== id) });
+
+  const refsPicker = (d: Draft) => (
+    <div className="budget-refs-field">
+      <span>{t("budget.select_tasks")}</span>
+      <div className="budget-refs">
+        {otherLines.length === 0 && <span className="muted">{t("budget.no_tasks")}</span>}
+        {otherLines.map((l) => (
+          <label key={l.id} className="check">
+            <input type="checkbox" checked={d.refs.includes(l.id)} onChange={(e) => toggleRef(d, l.id, e.target.checked)} />
+            {l.task} <span className="muted">({format.money(l.total)})</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+
+  const onEditKey = (e: KeyboardEvent) => {
+    if (e.key === "Escape") setDraft(null);
+  };
+
+  // Inputs of the row being edited in the table.
+  const editCells = (d: Draft) => {
+    const set = (field: keyof Draft) => (e: { target: { value: string } }) => setDraft({ ...d, [field]: e.target.value });
+    const cell = { form: EDIT_FORM, onKeyDown: onEditKey };
+    return (
+      <>
+        <td>
+          <input {...cell} required autoFocus value={d.task} onChange={set("task")} aria-label={t("budget.col_task")} />
+        </td>
+        <td className="num">
+          {d.kind !== "lump_sum" && (
+            <span className="cell-unit">
+              <input {...cell} required type="number" min={0} step="any" value={d.quantity} onChange={set("quantity")}
+                aria-label={d.kind === "percentage" ? t("budget.percent") : t("budget.col_quantity")} />
+              {d.kind === "percentage" && "%"}
+            </span>
+          )}
+        </td>
+        <td className="num">
+          {d.kind === "unit" && (
+            <input {...cell} required type="number" min={0} step="any" value={d.unit_price} onChange={set("unit_price")} aria-label={t("budget.col_unit_price")} />
+          )}
+        </td>
+        <td className="num">
+          {d.kind === "lump_sum"
+            ? <input {...cell} required type="number" step="any" value={d.total} onChange={set("total")} aria-label={t("budget.col_total")} />
+            : format.money(previewTotal(d))}
+        </td>
+        <td>
+          <input {...cell} value={d.note} onChange={set("note")} aria-label={t("budget.col_note")} />
+        </td>
+        <td className="row-actions">
+          <button type="submit" form={EDIT_FORM} className="primary" disabled={d.kind === "percentage" && d.refs.length === 0}>
+            {t("budget.save")}
+          </button>
+          <button type="button" onClick={() => setDraft(null)}>{t("budget.cancel")}</button>
+        </td>
+      </>
+    );
+  };
+
+  const viewCells = (line: BudgetLine, index: number) => (
+    <>
+      <td>
+        {line.task}
+        {line.kind === "percentage" && (
+          <span className="muted"> · {t("budget.percent_of", { pct: decimal.format(line.quantity ?? 0), tasks: taskNames(line.refs) || "—" })}</span>
+        )}
+      </td>
+      <td className="num">{quantityCell(line)}</td>
+      <td className="num">{line.unit_price === null ? "" : format.money(line.unit_price)}</td>
+      <td className="num">{format.money(line.total)}</td>
+      <td>{line.note}</td>
+      <td className="row-actions">
+        <button type="button" title={t("budget.move_up")} disabled={index === 0} onClick={() => move(index, index - 1)}>↑</button>
+        <button type="button" title={t("budget.move_down")} disabled={index === lines.length - 1} onClick={() => move(index, index + 1)}>↓</button>
+        <button type="button" onClick={() => setDraft(toDraft(line))}>{t("budget.edit")}</button>
+        <button type="button" onClick={() => remove(line)}>{t("budget.delete")}</button>
+      </td>
+    </>
+  );
 
   return (
     <section className="panel">
@@ -170,7 +290,7 @@ export default function Budget() {
             ))}
           </div>
 
-          {draft && (
+          {draft && draft.id === null && (
             <form className="budget-form" onSubmit={submit}>
               <strong>{t(`budget.${draft.kind}`)}</strong>
               <label className="wide">
@@ -199,35 +319,24 @@ export default function Budget() {
                 <span>{t("budget.col_note")}</span>
                 <input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
               </label>
-              {draft.kind === "percentage" && (
-                <fieldset className="budget-refs">
-                  <legend>{t("budget.select_tasks")}</legend>
-                  {otherLines.length === 0 && <span className="muted">{t("budget.no_tasks")}</span>}
-                  {otherLines.map((l) => (
-                    <label key={l.id} className="check">
-                      <input
-                        type="checkbox"
-                        checked={draft.refs.includes(l.id)}
-                        onChange={(e) => setDraft({ ...draft, refs: e.target.checked ? [...draft.refs, l.id] : draft.refs.filter((r) => r !== l.id) })}
-                      />
-                      {l.task} <span className="muted">({format.money(l.total)})</span>
-                    </label>
-                  ))}
-                </fieldset>
-              )}
+              {draft.kind === "percentage" && refsPicker(draft)}
               <div className="actions">
                 <button type="submit" className="primary" disabled={draft.kind === "percentage" && draft.refs.length === 0}>
-                  {draft.id === null ? t("budget.add") : t("budget.save")}
+                  {t("budget.add")}
                 </button>
                 <button type="button" onClick={() => setDraft(null)}>{t("budget.cancel")}</button>
               </div>
             </form>
           )}
 
+          {/* Form of the row edited in the table; its inputs point here with form={EDIT_FORM}. */}
+          <form id={EDIT_FORM} onSubmit={submit} hidden />
+
           <div className="table-scroll">
             <table className="mining-table budget-table">
               <thead>
                 <tr>
+                  <th />
                   <th>{t("budget.col_task")}</th>
                   <th className="num">{t("budget.col_quantity")}</th>
                   <th className="num">{t("budget.col_unit_price")}</th>
@@ -237,34 +346,52 @@ export default function Budget() {
                 </tr>
               </thead>
               <tbody>
-                {budget.lines.map((line, index) => (
-                  <tr key={line.id}>
-                    <td>
-                      {line.task}
-                      {line.kind === "percentage" && (
-                        <span className="muted"> · {t("budget.percent_of", { pct: decimal.format(line.quantity ?? 0), count: line.refs.length })}</span>
-                      )}
-                    </td>
-                    <td className="num">{quantityCell(line)}</td>
-                    <td className="num">{line.unit_price === null ? "" : format.money(line.unit_price)}</td>
-                    <td className="num">{format.money(line.total)}</td>
-                    <td>{line.note}</td>
-                    <td className="row-actions">
-                      <button type="button" title={t("budget.move_up")} disabled={index === 0} onClick={() => move(index, -1)}>↑</button>
-                      <button type="button" title={t("budget.move_down")} disabled={index === budget.lines.length - 1} onClick={() => move(index, 1)}>↓</button>
-                      <button type="button" onClick={() => setDraft(toDraft(line))}>{t("budget.edit")}</button>
-                      <button type="button" onClick={() => remove(line)}>{t("budget.delete")}</button>
-                    </td>
-                  </tr>
-                ))}
-                {budget.lines.length === 0 && (
-                  <tr><td colSpan={6} className="muted">{t("budget.empty")}</td></tr>
+                {lines.map((line, index) => {
+                  const editing = draft !== null && editingId === line.id;
+                  return [
+                    <tr
+                      key={line.id}
+                      draggable={editingId === null}
+                      className={`${editing ? "editing" : ""} ${dragIndex === index ? "dragging" : ""} ${dropClass(index)}`}
+                      title={editingId === null ? t("budget.dblclick_edit") : undefined}
+                      onDoubleClick={() => { if (editingId === null) setDraft(toDraft(line)); }}
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", String(line.id)); // required by Firefox
+                        setDragIndex(index);
+                      }}
+                      onDragOver={(e) => {
+                        if (dragIndex === null) return;
+                        e.preventDefault();
+                        e.dataTransfer.dropEffect = "move";
+                        if (overIndex !== index) setOverIndex(index);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragIndex !== null) move(dragIndex, index);
+                        endDrag();
+                      }}
+                      onDragEnd={endDrag}
+                    >
+                      <td className="drag-handle" title={t("budget.drag")}>⠿</td>
+                      {editing ? editCells(draft) : viewCells(line, index)}
+                    </tr>,
+                    editing && draft.kind === "percentage" && (
+                      <tr key={`${line.id}-refs`} className="editing">
+                        <td />
+                        <td colSpan={6}>{refsPicker(draft)}</td>
+                      </tr>
+                    ),
+                  ];
+                })}
+                {lines.length === 0 && (
+                  <tr><td colSpan={7} className="muted">{t("budget.empty")}</td></tr>
                 )}
               </tbody>
-              {budget.lines.length > 0 && (
+              {lines.length > 0 && (
                 <tfoot>
                   <tr>
-                    <td colSpan={3}><strong>{t("budget.total")}</strong></td>
+                    <td colSpan={4}><strong>{t("budget.total")}</strong></td>
                     <td className="num"><strong>{format.money(budget.lines_total)}</strong></td>
                     <td colSpan={2} />
                   </tr>

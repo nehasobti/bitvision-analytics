@@ -1,8 +1,8 @@
 """'Gestione budget': cost breakdown of a BitVision tender.
 
 The tender's base amount (Base d'asta) is read from BitVision; everything the user
-enters (Oneri sicurezza and the task rows) is stored in the app's own SQLite file,
-next to the saved analyses, so the BitVision database stays read-only.
+enters (Oneri sicurezza and the task rows) is stored in the app's own database
+(see app/store.py), next to the saved analyses, so the BitVision database stays read-only.
 
 Row kinds:
 - unit:        Totale = Prezzo unitario * Unità di misura    ("A unità di misura")
@@ -19,7 +19,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import Column, DateTime, Float, Integer, MetaData, String, Table, Text, delete, insert, select, update
 
-from app.saved_views import engine as store
+from app.store import engine as store
 
 KINDS = ("unit", "lump_sum", "percentage")
 

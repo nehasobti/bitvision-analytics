@@ -213,13 +213,22 @@ select {
 .budget-form > strong { width: 100%; color: var(--primary); }
 .budget-form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; min-width: 140px; }
 .budget-form label.wide { flex: 1; min-width: 220px; }
-.budget-refs { width: 100%; display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
-.budget-refs legend { font-size: 12px; font-weight: 600; padding: 0 4px; }
+.budget-refs-field { width: 100%; display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; }
+.budget-refs { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
 .budget-refs label.check { flex-direction: row; align-items: center; gap: 6px; min-width: 0; font-weight: 400; font-size: 13px; }
 .budget-refs input { width: auto; }
 .budget-table tfoot td { border-top: 2px solid var(--primary); background: var(--primary-soft); }
 .budget-table .row-actions { white-space: nowrap; text-align: right; }
 .budget-table .row-actions button { padding: 3px 8px; margin-left: 4px; font-size: 12px; }
+.budget-table tbody tr[draggable] { cursor: grab; }
+.budget-table .drag-handle { width: 24px; color: var(--muted); text-align: center; user-select: none; }
+.budget-table tr.dragging td { opacity: 0.4; }
+.budget-table tr.drop-before td { box-shadow: inset 0 2px 0 var(--primary); }
+.budget-table tr.drop-after td { box-shadow: inset 0 -2px 0 var(--primary); }
+.budget-table tr.editing td { background: var(--primary-soft); }
+.budget-table tr.editing input { padding: 4px 6px; }
+.budget-table tr.editing td.num input { text-align: right; min-width: 80px; }
+.budget-table .cell-unit { display: inline-flex; align-items: center; gap: 4px; }
 
 .muted { color: var(--muted); font-size: 13px; }
 .error { color: var(--error); font-size: 13px; }
