@@ -9,7 +9,7 @@ from datetime import datetime
 
 from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, Text, delete, insert, select
 
-from app.store import engine
+from app.store import create_tables, engine
 
 metadata = MetaData()
 
@@ -24,7 +24,7 @@ saved_views = Table(
     Column("created_at", DateTime, nullable=False),
 )
 
-metadata.create_all(engine)
+create_tables(metadata)
 
 
 def _to_dict(row) -> dict:

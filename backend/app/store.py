@@ -9,7 +9,8 @@ Tables are created on startup by the modules that define them.
 
 from pathlib import Path
 
-from sqlalchemy import create_engine
+from sqlalchemy import MetaData, create_engine
+from sqlalchemy.exc import IntegrityError, ProgrammingError
 
 from app.config import settings
 
@@ -29,3 +30,12 @@ def _url() -> str:
 
 # pool_pre_ping: serverless instances can be frozen for a while, so check a connection before using it.
 engine = create_engine(_url(), pool_pre_ping=True)
+
+
+def create_tables(metadata: MetaData) -> None:
+    """Creates missing tables. On Vercel several instances can start at the same moment and
+    try to create the same table: the losers get "already exists", which is fine."""
+    try:
+        metadata.create_all(engine)
+    except (IntegrityError, ProgrammingError):
+        metadata.create_all(engine)  # the other instance finished: this only checks, nothing to create

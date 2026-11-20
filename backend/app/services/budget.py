@@ -19,7 +19,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import Column, DateTime, Float, Integer, MetaData, String, Table, Text, delete, insert, select, update
 
-from app.store import engine as store
+from app.store import create_tables, engine as store
 
 KINDS = ("unit", "lump_sum", "percentage")
 
@@ -49,7 +49,7 @@ budget_lines = Table(
     Column("refs", Text),  # JSON list of line ids summed by a percentage row
 )
 
-metadata.create_all(store)
+create_tables(metadata)
 
 
 class BudgetLineIn(BaseModel):
